@@ -149,4 +149,5 @@ TsfFileRotationTask >> performRotation: aFileReference [
          damit die Policy weiß, welche Backups (app.log.*) sie zählen soll."
         retentionPolicy enforceRetentionFor: (finalRef parent / originalBaseName).
     ].
+
 ]
