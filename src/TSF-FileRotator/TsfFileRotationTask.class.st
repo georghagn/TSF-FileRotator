@@ -107,16 +107,6 @@ TsfFileRotationTask >> executeAction [
 ]
 
 { #category : 'initialization' }
-TsfFileRotationTask >> initializeWithFiles: aCollectionOfFileRefs policy: aPolicy [
-
-	self initialize.
-	
-	"Wir speichern Paths, keine FileReferences, da renameTo: die Reference mutiert"
-	monitoredPaths := aCollectionOfFileRefs collect: [ :each | each asPath ].
-	rotationPolicy := aPolicy.
-]
-
-{ #category : 'initialization' }
 TsfFileRotationTask >> initializeWithFiles: aCollectionOfFileRefs 
 	rotationPolicy: aRotPolicy 
 	archiveStrategy: anArchStrategy 
