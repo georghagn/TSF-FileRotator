@@ -9,6 +9,12 @@ Class {
 	#tag : 'Strategie'
 }
 
+{ #category : 'as yet unclassified' }
+TsfCountRetentionPolicy class >> defaultMaxCount [
+
+	^ 3
+]
+
 { #category : 'private - actions' }
 TsfCountRetentionPolicy >> enforceRetentionFor: aOriginalFileReference [
 	| backupPattern backups toDelete |
@@ -37,6 +43,14 @@ TsfCountRetentionPolicy >> enforceRetentionFor: aOriginalFileReference [
 	].
 
 
+]
+
+{ #category : 'initialization' }
+TsfCountRetentionPolicy >> initialize [ 
+
+	super initialize.
+	
+	maxCount := self class defaultMaxCount .
 ]
 
 { #category : 'accessing' }

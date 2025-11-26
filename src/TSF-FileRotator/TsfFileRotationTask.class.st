@@ -18,7 +18,7 @@ TsfFileRotationTask >> acquireLock: aLockFile [
 
 	aLockFile exists ifTrue: [
 		"Stale Check: Ist der Lock älter als 60 Sekunden?"
-		(DateAndTime now - aLockFile modificationTime) > 60 seconds ifTrue: [ 
+		(self currentSystemTime - aLockFile modificationTime) > 60 seconds ifTrue: [ 
 			Transcript 
 				show: '[TsfFileRotator] Removing stale lock: ';
 				show: aLockFile basename; cr.
@@ -35,7 +35,7 @@ TsfFileRotationTask >> acquireLock: aLockFile [
 	[ 
 		aLockFile writeStreamDo: [ 	:s 	| s 
 			nextPutAll: 'LOCKED by TsfFileRotator a	t ';
-			nextPutAll: DateAndTime now asString .
+			nextPutAll: self currentSystemTime asString .
 		].
 		^ true
 	] on: Error do: [ :ex | 
@@ -46,18 +46,50 @@ TsfFileRotationTask >> acquireLock: aLockFile [
 ]
 
 { #category : 'private - actions' }
+TsfFileRotationTask >> acquireLock: aLockFile retries: anInteger [
+	"Versucht den Lock mehrfach zu bekommen, bevor aufgegeben wird."
+
+	anInteger timesRepeat: [ 
+		"Versuch"
+		(self acquireLock: aLockFile) ifTrue: [ ^ true ].
+
+		"Kurz warten (Backoff)"
+		(Delay forMilliseconds: 10) wait.
+	].
+
+	"Nach allen Versuchen immer noch kein Erfolg"
+	^ false
+	
+]
+
+{ #category : 'converting' }
+TsfFileRotationTask >> asFileNameString: aDateAndTime [
+	"z.B. 2023-11-24_14-00-00"
+   | stream |
+	
+	stream := String new writeStream.
+	aDateAndTime printYMDOn: stream.
+	stream << '_'.
+	aDateAndTime printHMSWithDashesOn: stream.
+
+	^ stream contents
+	
+
+]
+
+{ #category : 'private - actions' }
 TsfFileRotationTask >> attemptRotationFor: aFileReference [
 	| lockFile |
 
 	"Lock-Datei bestimmen: meinedatei.log -> meinedatei.log.LOCK"
 	lockFile := aFileReference parent / (aFileReference basename , '.LOCK').
 
-	"Versuchen, den Lock zu bekommen (inkl. Stale Check)"
-	(self acquireLock: lockFile) ifFalse: [ 
+	"NEU: Wir versuchen es 3 Mal (mit je 10ms Pause)"
+	(self acquireLock: lockFile retries: 3) ifFalse: [ 
 		Transcript 
-			show: '[TsfFileRotator] Skip locked file: ';
+			show: '[TsfFileRotator] Skipped locked file (after 3 retries): ';
 			show: aFileReference basename; cr.
-		^ self
+		^ self 
 	].
 
 	[
@@ -75,19 +107,11 @@ TsfFileRotationTask >> attemptRotationFor: aFileReference [
 
 ]
 
-{ #category : 'converting' }
-TsfFileRotationTask >> dasherized: aDateAndTime [
-	"z.B. 2023-11-24_14-00-00"
-   | stream |
-	
-	stream := String new writeStream.
-	aDateAndTime printYMDOn: stream.
-	stream << '_'.
-	aDateAndTime printHMSWithDashesOn: stream.
+{ #category : 'private - accessing' }
+TsfFileRotationTask >> currentSystemTime [
 
-	^ stream contents
-	
-
+	"Gibt die aktuelle Zeit zurück. Kann in Tests überschrieben werden."
+	^ DateAndTime now
 ]
 
 { #category : 'private - actions' }
@@ -126,28 +150,29 @@ TsfFileRotationTask >> initializeWithFiles: aCollectionOfFileRefs
 
 { #category : 'private - actions' }
 TsfFileRotationTask >> performRotation: aFileReference [
-    | originalBaseName newName timestamp rotatedRef finalRef |
+	| originalBaseName newName timestamp rotatedRef finalRef |
+
+	"Wir merken uns den Namen (z.B. 'app.log'), da aFileReference gleich mutiert wird"
+	originalBaseName := aFileReference basename.
     
-    "Wir merken uns den Namen (z.B. 'app.log'), da aFileReference gleich mutiert wird"
-    originalBaseName := aFileReference basename.
+	timestamp := self asFileNameString: DateAndTime now.
+	"newName := originalBaseName , '.' , timestamp , '.bak'."
+	newName := originalBaseName , '.' , timestamp.
+
+	"1. RENAME (Das 'Wegreißen')"
+	"Achtung: aFileReference zeigt nun auf die .timestamp Datei!"
+	rotatedRef := aFileReference renameTo: newName.
+	Transcript show: ('[TsfFileRotator] Rotated to {1}' format: {newName}); cr.
     
-    timestamp := self dasherized: DateAndTime now .
-    newName := originalBaseName , '.' , timestamp , '.bak'.
+	"2. ARCHIVE (Optional Zippen)"
+	"Gibt Referenz auf das Zip (oder die .bak, falls kein Zip) zurück"
+	finalRef := archiveStrategy archive: rotatedRef.
     
-    "1. RENAME (Das 'Wegreißen')"
-    "Achtung: aFileReference zeigt nun auf die .bak Datei!"
-    rotatedRef := aFileReference renameTo: newName.
-    Transcript show: ('[TsfFileRotator] Rotated to {1}' format: {newName}); cr.
-    
-    "2. ARCHIVE (Optional Zippen)"
-    "Gibt Referenz auf das Zip (oder die .bak, falls kein Zip) zurück"
-    finalRef := archiveStrategy archive: rotatedRef.
-    
-    "3. RETENTION (Aufräumen)"
-    retentionPolicy ifNotNil: [ 
-        "Wir bauen eine Referenz auf den Ursprungsnamen ('app.log'), 
-         damit die Policy weiß, welche Backups (app.log.*) sie zählen soll."
-        retentionPolicy enforceRetentionFor: (finalRef parent / originalBaseName).
-    ].
+	"3. RETENTION (Aufräumen)"
+	retentionPolicy ifNotNil: [ 
+		"Wir bauen eine Referenz auf den Ursprungsnamen ('app.log'), 
+		damit die Policy weiß, welche Backups (app.log.*) sie zählen soll."
+		retentionPolicy enforceRetentionFor: (finalRef parent / originalBaseName).
+	].
 
 ]

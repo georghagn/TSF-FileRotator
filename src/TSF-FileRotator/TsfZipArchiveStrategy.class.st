@@ -46,7 +46,7 @@ TsfZipArchiveStrategy >> archive: aFileReference [
 
 		"Datei zum Zip hinzufügen. 
 		'as:': Wir wollen nur den Dateinamen im Zip, nicht den ganzen Pfad."
-		zip addFile: aFileReference fullName as: aFileReference basename.
+		zip addFile: aFileReference as: aFileReference basename.
 
 		"Zip auf Platte schreiben"
 		zip writeToFile: zipRef.
