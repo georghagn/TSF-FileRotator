@@ -36,7 +36,7 @@ Er wurde speziell für heterogene Umgebungen entwickelt (z.B. **Go-Logger & Phar
 ```smalltalk
 Metacello new
     baseline: 'TsfFileRotator';
-    repository: 'github://georgh/tsf-file-rotator:main';
+    repository: 'github://georgh/TSF-FileRotator:main';
     load.
 ```
 
