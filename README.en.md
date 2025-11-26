@@ -11,8 +11,8 @@
 
 ## Overview
 
-The **TSF-FileRotator** is a plugin for the TSF suite. It monitors files (e.g., logs), rotates them based on configurable policies (size, age), and archives them. 
-It was specifically designed for heterogeneous environments (e.g. **Go-Logger & Pharo-Rotator**) and uses file-based locks to reliably avoid conflicts.
+The **TSF-FileRotator** is a plugin for the TSF suite. It monitors files (e.g., logs), rotates them based on configurable policies (size, age), and archives them.. 
+It was specifically designed for heterogeneous environments (e.g. **Go-Logger & Pharo-Rotator**) and uses file-based locks to reliably avoid conflicts..
 
 ## Features
 
