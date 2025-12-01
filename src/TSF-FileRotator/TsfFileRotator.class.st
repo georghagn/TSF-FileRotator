@@ -14,54 +14,46 @@ Class {
 
 { #category : 'private - actions' }
 TsfFileRotator >> acquireLock: aLockFile [
+	"Gibt true zurück, wenn wir den Lock haben. Löscht verwaiste Locks."
 
 	aLockFile exists ifTrue: [
-		"Stale Check: is lock older as 60 seconds?"
+		"Stale Check: Ist der Lock älter als 60 Sekunden?"
 		(self currentSystemTime - aLockFile modificationTime) > 60 seconds ifTrue: [ 
-			Transcript 
-				show: '[TsfFileRotator] Removing stale lock: ';
-				show: aLockFile basename; cr.
 			aLockFile delete. 
-			"Now the way is clear for the writeStream below."
+			"Jetzt ist der Weg frei für den writeStream unten"
 		] ifFalse: [ 
-			"fresh lock -> cancel"
+			"Lock ist frisch -> Abbruch"
 			^ false 
 		].
 	].
 	
-
-	"Create a lock. We'll write our signature in it.."
 	[ 
-		aLockFile writeStreamDo: [ 	:s 	| s 
-			nextPutAll: 'LOCKED by TsfFileRotator a	t ';
-			nextPutAll: self currentSystemTime asString .
-		].
+		aLockFile writeStreamDo: [ :s | s nextPutAll: 'LOCKED' ].
 		^ true
-	] on: Error do: [ :ex | 
-		"Could not create file (Permission, Race Condition etc.)"
-		^ false 
-	].
+	] on: Error do: [ ^ false ].
 
 ]
 
 { #category : 'private - actions' }
 TsfFileRotator >> acquireLock: aLockFile retries: anInteger [
+	"Versucht den Lock mehrfach zu bekommen, bevor aufgegeben wird."
 
 	anInteger timesRepeat: [ 
-		"Try"
+		"Versuch"
 		(self acquireLock: aLockFile) ifTrue: [ ^ true ].
 
-		"Wait short (Backoff)"
+		"Kurz warten (Backoff)"
 		(Delay forMilliseconds: 10) wait.
 	].
 
-	"Despite all attempts, still no success."
+	"Nach allen Versuchen immer noch kein Erfolg"
 	^ false
+
 ]
 
 { #category : 'converting' }
 TsfFileRotator >> asFileNameString: aDateAndTime [
-
+	"z.B. 2023-11-24_14-00-00"
    | stream |
 	
 	stream := String new writeStream.
@@ -71,84 +63,71 @@ TsfFileRotator >> asFileNameString: aDateAndTime [
 
 	^ stream contents
 	
+
 ]
 
 { #category : 'private - actions' }
 TsfFileRotator >> attemptRotationFor: aFileReference [
 	| lockFile |
 
-	"determine lock file: meinedatei.log -> meinedatei.log.LOCK"
 	lockFile := aFileReference parent / (aFileReference basename , '.LOCK').
 
-	"NEW: we try 3 times (always with 10ms pause)"
+	"Retry Logik: 3 Versuche à 10ms"
 	(self acquireLock: lockFile retries: 3) ifFalse: [ 
 		Transcript 
-			show: '[TsfFileRotator] Skipped locked file (after 3 retries): ';
+			show: '[TsfFileRotator] Skipped locked file: ';
 			show: aFileReference basename; cr.
 		^ self 
 	].
 
 	[
-		"citical section: rename"
 		self performRotation: aFileReference.
 	] ensure: [ 
-		"clean up: Delete the lock, no matter what happens."
-		lockFile deleteIfAbsent: [ 
-			Transcript 
-				show: '[TsfFileRotator] Error deleting lock for ';
-				show: aFileReference basename; cr. 
-		].
-		Transcript show: '[TsfFileRotator] OK '; cr. 
+		lockFile deleteIfAbsent: [].
 	].
+
+]
+
+{ #category : 'configuration' }
+TsfFileRotator >> configureWithFiles: aCollectionOfFileRefs rotationPolicy: aRotPolicy 
+archiveStrategy: anArchStrategy retentionPolicy: aRetPolicy [
+
+	"Wir speichern absolute Pfade, um Kontext-Probleme zu vermeiden"
+    monitoredPaths := aCollectionOfFileRefs collect: [ :each | each asAbsolute asPath ].
+    
+    rotationPolicy := aRotPolicy.
+    archiveStrategy := anArchStrategy ifNil: [ TsfNoCompressionStrategy new ].
+    retentionPolicy := aRetPolicy.
 
 ]
 
 { #category : 'private - accessing' }
 TsfFileRotator >> currentSystemTime [
 
-	"actual time. overwrite in tests."
+	"Gibt die aktuelle Zeit zurück. Kann in Tests überschrieben werden."
 	^ DateAndTime now
 ]
 
 { #category : 'executing' }
 TsfFileRotator >> execute [
-	| fileRef |
+    "Das ist der Einstiegspunkt für die Business-Logik."
+    | fileRef |
 
-	monitoredPaths do: [ :eachPath | 
-		"every time create a fresh fileReference on path"
-		fileRef := eachPath asFileReference.
+    monitoredPaths do: [ :eachPath | 
+        "Jedes Mal eine frische Referenz (wichtig!)"
+        fileRef := eachPath asFileReference.
 
-		"ask policy"
-		(rotationPolicy shouldRotate: fileRef) ifTrue: [ 
-			^ self attemptRotationFor: fileRef 
-		]
-	].
-
-]
-
-{ #category : 'initialization' }
-TsfFileRotator >> initializeWithFiles: aCollectionOfFileRefs 
-	rotationPolicy: aRotPolicy 
-	archiveStrategy: anArchStrategy 
-	retentionPolicy: aRetPolicy [
-
-	self initialize.
-    
-	"IMPORTANT: We only store paths, not file references. 
-	 Reason: `renameTo` mutates file references, which would lead to errors on the next iteration."
-	monitoredPaths := aCollectionOfFileRefs collect: [ :each | each asPath ].
-    
-	rotationPolicy := aRotPolicy.
-	archiveStrategy := anArchStrategy ifNil: [ TsfNoCompressionStrategy new ].
-	retentionPolicy := aRetPolicy.
-	
+        (rotationPolicy shouldRotate: fileRef) ifTrue: [ 
+            self attemptRotationFor: fileRef 
+        ]
+    ].
 ]
 
 { #category : 'private - actions' }
 TsfFileRotator >> performRotation: aFileReference [
 	| originalBaseName newName timestamp rotatedRef finalRef |
 
-	"we remember the name (e.g., 'app.log') because aFileReference is mutated immediately."
+	"Wir merken uns den Namen (z.B. 'app.log'), da aFileReference gleich mutiert wird"
 	originalBaseName := aFileReference basename.
     
 	timestamp := self asFileNameString: DateAndTime now.
@@ -161,13 +140,13 @@ TsfFileRotator >> performRotation: aFileReference [
 	Transcript show: ('[TsfFileRotator] Rotated to {1}' format: {newName}); cr.
     
 	"2. ARCHIVE (Optional Zippen)"
-	"reference to zip (or .bak, if no zip) "
+	"Gibt Referenz auf das Zip (oder die .bak, falls kein Zip) zurück"
 	finalRef := archiveStrategy archive: rotatedRef.
     
-	"3. RETENTION (CleanUp)"
+	"3. RETENTION (Aufräumen)"
 	retentionPolicy ifNotNil: [ 
-		"We create a reference to the original name ('app.log'), so that the policy 
-		knows which backups (app.log.*) to count."
+		"Wir bauen eine Referenz auf den Ursprungsnamen ('app.log'), 
+		damit die Policy weiß, welche Backups (app.log.*) sie zählen soll."
 		retentionPolicy enforceRetentionFor: (finalRef parent / originalBaseName).
 	].
 

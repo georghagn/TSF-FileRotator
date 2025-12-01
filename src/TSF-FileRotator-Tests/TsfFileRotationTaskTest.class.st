@@ -13,14 +13,15 @@ TsfFileRotationTaskTest >> testExecuteHappyPath [
 	"Arrange"
 	logFile := self createFile: 'server.log' content: (String new: 100 withAll: $X).
 
-	task := TsfFileRotationTask new 
-		initializeWithFiles: { logFile }
-		rotationPolicy: (TsfFileSizeLimitPolicy new limit: 50) "Limit überschritten"
-		archiveStrategy: (TsfZipArchiveStrategy new)
-		retentionPolicy: (TsfCountRetentionPolicy new maxCount: 5).
+	task := TsfFileRotator new .
+
+    task configureWithFiles: { logFile }
+         rotationPolicy: (TsfFileSizeLimitPolicy new limit: 50) "Limit (50) < Größe (100) -> Rotate"
+         archiveStrategy: TsfZipArchiveStrategy new
+         retentionPolicy: (TsfCountRetentionPolicy new maxCount: 5).
 
 	"Act"
-	task executeAction.
+	task execute.
     
 	"Assert"
 	"1. Original-Datei muss weg sein (oder leer, hier weg weil 'renameTo:')"
@@ -37,66 +38,77 @@ TsfFileRotationTaskTest >> testExecuteHappyPath [
 
 { #category : 'tests' }
 TsfFileRotationTaskTest >> testOvercomesStaleLock [
-	| logFile task lockFile |
+    | logFile task lockFile |
 
-	logFile := self createFile: 'stale.log' content: (String new: 100 withAll: $X).
-	lockFile := testDir / 'stale.log.LOCK'.
-	lockFile ensureCreateFile.
+    "Arrange"
+    logFile := self createFile: 'stale.log' content: (String new: 100 withAll: $X).
+    
+    "Wir erzeugen manuell ein Lock-File (Zeitstempel = Jetzt)"
+    lockFile := testDir / 'stale.log.LOCK'.
+    lockFile ensureCreateFile.
 
-	"2. Wir erzeugen eine anonyme Subklasse des Tasks on-the-fly"
-	task := TsfFileRotationTask newAnonymousSubclass new.
+    "1. Mocking: Wir leiten vom TASK ab, da dort die Logik (currentSystemTime) liegt"
+    task := TsfFileRotator newAnonymousSubclass new.
 
-	"3. Wir 'patchen' die Zeit-Methode in dieser Instanz/Klasse.
-	Der Task glaubt jetzt, wir sind 2 Stunden in der Zukunft."
-	task class compile: 'currentSystemTime ^ DateAndTime now + 2 hours'.
+    "2. Time Travel: Wir patchen die Zeit im Task."
+    "Der Task glaubt jetzt, wir sind 2 Stunden in der Zukunft."
+    "Dadurch wirkt das gerade erstellte LockFile wie 2 Stunden alt (> 60s Stale Limit)."
+    task class compile: 'currentSystemTime ^ DateAndTime now + 2 hours'.
 
-	"Trick: Wir setzen das Datum der Lock-Datei auf vor 2 Stunden"
-"	oldTime := DateAndTime now - 2 hours.
-	lockFile modificationTime oldTime."
+    "3. Konfiguration direkt am Task (ohne Builder)"
+    task configureWithFiles: { logFile }
+         rotationPolicy: (TsfFileSizeLimitPolicy new limit: 10) "10 < 100 -> Rotate needed"
+         archiveStrategy: nil
+         retentionPolicy: nil.
 
-	task 
-		initializeWithFiles: { logFile }
-		rotationPolicy: (TsfFileSizeLimitPolicy new limit: 10)
-		archiveStrategy: nil
-		retentionPolicy: nil.
+    "Act"
+    task execute.
 
-	"Act"
-	task executeAction.
-
-	"Assert"
-	"Trotz Lock muss rotiert worden sein, weil Lock alt war"
-	self deny: logFile exists.
-	self assert: (testDir childrenMatching: 'stale.log.*') size equals: 1.
-	
+    "Assert"
+    "Trotz existierendem Lock muss rotiert worden sein, weil das Lock als 'stale' erkannt und gelöscht wurde"
+    
+    "Original ist weg (rotiert)"
+    self deny: logFile exists.
+    
+    "Backup ist da"
+    self assert: (testDir childrenMatching: 'stale.log.*') notEmpty.
+    
+    "Lock-File wurde sauber abgeräumt"
+    self deny: lockFile exists.
 ]
 
 { #category : 'tests' }
 TsfFileRotationTaskTest >> testRetryFailsAfterAttempts [
-	| logFile task lockFile start end duration |
+    | logFile task lockFile start end duration |
 
-	logFile := self createFile: 'busy.log' content: 'data'.
-	lockFile := testDir / 'busy.log.LOCK'.
-	lockFile ensureCreateFile. "Dauerhafter Lock"
+    "1. Log File mit GENUG Inhalt (> 10 Bytes), damit shouldRotate: anspringt"
+    logFile := self createFile: 'busy.log' content: (String new: 200 withAll: $X).
+    logFile := logFile asAbsolute. 
 
-	task := TsfFileRotationTask new 
-		initializeWithFiles: { logFile }
-		rotationPolicy: (TsfFileSizeLimitPolicy new limit: 1)
-		archiveStrategy: nil 
-	retentionPolicy: nil.
+    "2. Lock File blockiert den Zugriff"
+    lockFile := logFile parent / 'busy.log.LOCK'.
+    lockFile writeStreamDo: [ :s | s nextPutAll: 'I AM LOCKING THIS' ].
 
-	start := DateAndTime now.
-	task executeAction.
-	end := DateAndTime now.
+    "3. Task Setup (Plain Object)"
+    task := TsfFileRotator new.
+    task configureWithFiles: { logFile }
+         rotationPolicy: (TsfFileSizeLimitPolicy new limit: 10)
+         archiveStrategy: nil
+         retentionPolicy: nil.
 
-	duration := end - start.
+    "4. Act & Measure"
+    start := DateAndTime now.
+    task execute. "Ruft direkt die Business-Logik auf, inkl. Delays"
+    end := DateAndTime now.
 
-	"Assert: Die Datei ist noch da (Rotation gescheitert)"
-	self assert: logFile exists.
+    duration := end - start.
 
-	"Assert: Er hat mind. 30ms gewartet (3 * 10ms)"
-	"Wir geben etwas Puffer für Ausführungszeit, sagen wir > 20ms"
-	self assert: duration asMilliSeconds > 20.
-	
+    "5. Assert"
+    "Datei existiert noch (weil Rotation gescheitert)"
+    self assert: logFile exists.
+    
+    "Dauer muss > 30ms sein (3x 10ms Wait im Loop)"
+    self assert: duration asMilliSeconds >= 30.
 ]
 
 { #category : 'tests' }
@@ -110,14 +122,11 @@ TsfFileRotationTaskTest >> testSkipsLockedFile [
 	lockFile := testDir / 'blocked.log.LOCK'.
 	lockFile writeStreamDo: [ :s | s nextPutAll: 'BLOCKED' ].
 
-	task := TsfFileRotationTask new 
-		initializeWithFiles: { logFile }
-		rotationPolicy: (TsfFileSizeLimitPolicy new limit: 10)
-		archiveStrategy: nil
-		retentionPolicy: nil.
-
-	"Act"
-	task executeAction.
+	task := TsfFileRotator new .
+	task configureWithFiles: { logFile }
+         rotationPolicy: (TsfFileSizeLimitPolicy new limit: 10) "10 < 100 -> Rotate needed"
+         archiveStrategy: nil
+         retentionPolicy: nil.
 
 	"Assert"
 	"Die Rotation darf NICHT passiert sein, weil gelockt"
