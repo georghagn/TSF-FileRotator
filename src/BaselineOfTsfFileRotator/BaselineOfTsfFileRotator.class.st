@@ -1,6 +1,6 @@
 Class {
 	#name : 'BaselineOfTsfFileRotator',
-	#superclass : 'Object',
+	#superclass : 'BaselineOf',
 	#category : 'BaselineOfTsfFileRotator',
 	#package : 'BaselineOfTsfFileRotator'
 }
@@ -9,51 +9,13 @@ Class {
 BaselineOfTsfFileRotator >> baseline: spec [
 	<baseline>
 
-	spec for: #common do: [
-		self defineDependencies: spec.
-		self definePackages: spec.
-		self defineGroups: spec .
-	].
-]
+    spec for: #common do: [
+		spec package: 'TSF-FileRotator'.
+		spec package: 'TSF-FileRotator-Tests' with: [ spec requires: #('TSF-FileRotator') ].
+    ].
 
-{ #category : 'baselines - dependencies' }
-BaselineOfTsfFileRotator >> defineDependencies: spec [
+    spec group: 'core' with: #( 'TSF-FileRotator' ).
+    spec group: 'tests' with: #( 'TSF-FileRotator-Tests' ).
+    spec group: 'default' with: #( 'core' 'tests').
 
-	spec
-		baseline: 'TsfScheduler'
-		with: [ 
-			spec repository: 'github://georghagn/tsf-scheduler:main' 
-		]. 
-
-
-]
-
-{ #category : 'baselines - groups' }
-BaselineOfTsfFileRotator >> defineGroups: spec [
-
-	spec 
-		group: 'Core' with: #('TSF-FileRotator-Core');
-		group: 'Tests' with: #('TSF-FileRotator-Tests');
-		group: 'default' with: #('Core' 'Tests')
-		
-]
-
-{ #category : 'baselines - packages' }
-BaselineOfTsfFileRotator >> definePackages: spec [
-
-	"Die Reihenfolge und Abhängigkeiten basieren auf unserer Architektur"
-	spec package: 'TSF-FileRotator-Policies'.
-	spec package: 'TSF-FileRotator-Strategies'.
-	spec package: 'TSF-FileRotator-Core' with: [ 
-		spec requires: #('TsfScheduler' 'TSF-FileRotator-Policies' 'TSF-FileRotator-Strategies') 
-	].
-
-	spec package: 'TSF-FileRotator-Tests' with: [ 
-		spec requires: #('TSF-FileRotator-Core') 
-	].
-]
-
-{ #category : 'accessing' }
-BaselineOfTsfFileRotator >> projectClass [
-	^ MetacelloCypressBaselineProject
 ]
