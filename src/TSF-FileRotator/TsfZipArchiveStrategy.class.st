@@ -55,17 +55,14 @@ TsfZipArchiveStrategy >> archive: aFileReference [
 		"Erfolg: Originale .bak löschen"
 		aFileReference delete.
 
-		Transcript 
-			show: '[TsfFileRotator] Zipped: ';
-			show: zipRef basename; cr.
+		self logInfo: '[TsfFileRotator] Zipped: ' , zipRef basename.
         
 		"Wir geben das Zip zurück, falls nachfolgende Prozesse (Retention) das brauchen"
 		^ zipRef
         
 	] on: Error do: [ :ex |
-		Transcript 
-			show: '[TsfFileRotator] Zip failed: '; 
-			show: ex messageText; cr.
+		self logError: '[TsfFileRotator] Zip failed: ' ,  ex messageText.
+
 		"Bei Fehler: Zip (falls halb fertig) löschen, Original behalten"
 		zipRef ensureDelete.
 		^ aFileReference
