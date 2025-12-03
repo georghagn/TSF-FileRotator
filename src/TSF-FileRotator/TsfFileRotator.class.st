@@ -75,7 +75,7 @@ TsfFileRotator >> attemptRotationFor: aFileReference [
 
 	"Retry Logik: 3 Versuche à 10ms"
 	(self acquireLock: lockFile retries: 3) ifFalse: [ 
-		self logInfo: '[TsfFileRotator] Skipped locked file: ' , aFileReference basename.
+		self logInfo: 'Skipped locked file: ' , aFileReference basename.
 		^ self 
 	].
 
@@ -126,8 +126,8 @@ TsfFileRotator >> execute [
 TsfFileRotator >> logError: aString [
 
     logger 
-        ifNotNil: [ logger error: '[Scheduler] ', aString ]
-        ifNil: [ Transcript show: '[Scheduler ERROR] '; show: aString; cr ]
+        ifNotNil: [ logger error: '[TsfFileRotator] ', aString ]
+        ifNil: [ Transcript show: '[TsfFileRotator ERROR] '; show: aString; cr ]
 ]
 
 { #category : 'accessing' }
@@ -135,8 +135,8 @@ TsfFileRotator >> logInfo: aString [
     "Die Weiche: Haben wir einen Logger? Wenn ja, nutze ihn. Wenn nein, Transcript."
 
     logger 
-        ifNotNil: [ logger info: '[Scheduler] ', aString ]
-        ifNil: [ Transcript show: '[Scheduler] ' ; show: aString; cr ]
+        ifNotNil: [ logger info: '[TsfFileRotator] ', aString ]
+        ifNil: [ Transcript show: '[TsfFileRotator] ' ; show: aString; cr ]
 ]
 
 { #category : 'private - actions' }
@@ -153,7 +153,7 @@ TsfFileRotator >> performRotation: aFileReference [
 	"1. RENAME (Das 'Wegreißen')"
 	"Achtung: aFileReference zeigt nun auf die .timestamp Datei!"
 	rotatedRef := aFileReference renameTo: newName.
-	self logInfo: '[TsfFileRotator] Rotated to {1} format: {newName})'.
+	self logInfo: 'Rotated to {1} format: {newName})'.
     
 	"2. ARCHIVE (Optional Zippen)"
 	"Gibt Referenz auf das Zip (oder die .bak, falls kein Zip) zurück"

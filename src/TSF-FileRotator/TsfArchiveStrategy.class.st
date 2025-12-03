@@ -21,8 +21,8 @@ TsfArchiveStrategy >> archive: aFileReference [
 TsfArchiveStrategy >> logError: aString [
 
     logger 
-        ifNotNil: [ logger error: '[Scheduler] ', aString ]
-        ifNil: [ Transcript show: '[Scheduler ERROR] '; show: aString; cr ]
+        ifNotNil: [ logger error: '[TsfArchiveStrategy] ', aString ]
+        ifNil: [ Transcript show: '[TsfArchiveStrategy ERROR] '; show: aString; cr ]
 ]
 
 { #category : 'accessing' }
@@ -30,6 +30,6 @@ TsfArchiveStrategy >> logInfo: aString [
     "Die Weiche: Haben wir einen Logger? Wenn ja, nutze ihn. Wenn nein, Transcript."
 
     logger 
-        ifNotNil: [ logger info: '[Scheduler] ', aString ]
-        ifNil: [ Transcript show: '[Scheduler] ' ; show: aString; cr ]
+        ifNotNil: [ logger info: '[ArchiveStrategy] ', aString ]
+        ifNil: [ Transcript show: '[ArchiveStrategy] ' ; show: aString; cr ]
 ]
