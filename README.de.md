@@ -3,7 +3,7 @@
 |----:|
 |    |
 
-|[![Pharo Version](https://img.shields.io/badge/Pharo-12.0%2B-blue.svg)](https://pharo.org)|[![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE) [![Dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen.svg)](#)|
+|[![Pharo Version](https://img.shields.io/badge/Pharo-12.0%2B-blue.svg)](https://pharo.org)|[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE) [![Dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen.svg)](#)|
 |----|----|
 |![TSF-FileRotator Logo](logo-rotator.png)| ***TSF-FileRotator***<br>Ein robuster, prozessunabhängiger Datei-Rotator für Pharo Smalltalk. Teil der **TSF (Tiny Smalltalk Framework)**-Suite|
 
