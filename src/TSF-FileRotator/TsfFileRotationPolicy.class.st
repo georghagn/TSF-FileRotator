@@ -1,3 +1,9 @@
+"
+Copyright 2025 Georg Hagn
+SPDX-License-Identifier: Apache-2.0
+
+
+"
 Class {
 	#name : 'TsfFileRotationPolicy',
 	#superclass : 'Object',
