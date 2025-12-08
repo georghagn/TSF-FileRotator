@@ -95,7 +95,7 @@ Special thanks to my AI sparring partner for the intense and valuable discussion
 
 ## License
 
-MIT
+This project is licensed under the Apache 2.0 license. See LICENSE.
 
 ## Contact
 
