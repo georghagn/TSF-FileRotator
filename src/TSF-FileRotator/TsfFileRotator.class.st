@@ -145,6 +145,12 @@ TsfFileRotator >> logInfo: aString [
         ifNil: [ Transcript show: '[TsfFileRotator] ' ; show: aString; cr ]
 ]
 
+{ #category : 'accessing' }
+TsfFileRotator >> logger: aLogger [
+
+	logger := aLogger 
+]
+
 { #category : 'private - actions' }
 TsfFileRotator >> performRotation: aFileReference [
 	| originalBaseName newName timestamp rotatedRef finalRef |

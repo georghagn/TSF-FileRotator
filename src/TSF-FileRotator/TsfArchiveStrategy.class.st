@@ -39,3 +39,9 @@ TsfArchiveStrategy >> logInfo: aString [
         ifNotNil: [ logger info: '[ArchiveStrategy] ', aString ]
         ifNil: [ Transcript show: '[ArchiveStrategy] ' ; show: aString; cr ]
 ]
+
+{ #category : 'accessing' }
+TsfArchiveStrategy >> logger: aLogger [
+
+	logger := aLogger 
+]
