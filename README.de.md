@@ -100,6 +100,6 @@ Dieses Projekt steht unter der Apache 2.0 Lizenz. Siehe LICENSE.
 ## Kontakt
 
 Bei Fragen oder Interesse an diesem Projekt erreichen Sie mich unter:  
-📧 *dev.georgh [at] hconsult.biz*
+📧 *georghagn [at] tiny-frameworks.io*
 
 <sup>*(Bitte keine Anfragen an die privaten GitHub-Account-Adressen)*</sup>
